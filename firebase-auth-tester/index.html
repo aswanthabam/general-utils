@@ -6,6 +6,11 @@
     <title>Firebase Auth Tester</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome for Icons -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    />
     <style>
       body {
         font-family: "Inter", sans-serif;
@@ -16,10 +21,29 @@
         align-items: center;
         min-height: 100vh;
       }
+      .modal {
+        transition: opacity 0.3s ease, visibility 0.3s ease;
+      }
+      .modal.hidden {
+        opacity: 0;
+        visibility: hidden;
+      }
+      .modal-overlay {
+        background-color: rgba(0, 0, 0, 0.75);
+      }
     </style>
   </head>
   <body>
-    <div class="max-w-4xl w-full mx-auto p-8 bg-gray-800 rounded-xl shadow-2xl">
+    <div
+      class="max-w-4xl w-full mx-auto p-8 bg-gray-800 rounded-xl shadow-2xl relative"
+    >
+      <button
+        id="settingsBtn"
+        class="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors duration-200"
+      >
+        <i class="fa-solid fa-cog text-2xl"></i>
+      </button>
+
       <h1 class="text-3xl font-bold text-center mb-6 text-white">
         Firebase Authentication Tester
       </h1>
@@ -32,60 +56,33 @@
       ></div>
 
       <div class="space-y-6">
-        <!-- Input for Service Account Config -->
-        <div>
-          <label
-            for="serviceAccountConfig"
-            class="block text-sm font-medium text-gray-400 mb-2"
-            >Service Account Config (JSON)</label
-          >
-          <textarea
-            id="serviceAccountConfig"
-            rows="8"
-            class="block w-full px-4 py-3 bg-gray-700 rounded-lg text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
-            placeholder="Paste your Firebase service account JSON here..."
-          ></textarea>
-        </div>
-
-        <!-- Input for Web App API Key -->
-        <div>
-          <label
-            for="webApiKey"
-            class="block text-sm font-medium text-gray-400 mb-2"
-            >Web App API Key</label
-          >
-          <input
-            type="text"
-            id="webApiKey"
-            class="block w-full px-4 py-3 bg-gray-700 rounded-lg text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
-            placeholder="Enter your Firebase Web App API Key"
-          />
-        </div>
-
-        <!-- Buttons to Initialize and Authenticate -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <button
-            id="initializeFirebaseBtn"
-            class="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-lg transition-transform duration-200 transform hover:scale-105"
-          >
-            Initialize Firebase
-          </button>
+        <!-- Main Authentication Buttons -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <button
             id="authGoogleBtn"
-            class="w-full px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-lg transition-transform duration-200 transform hover:scale-105"
+            class="w-full px-6 py-4 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-lg transition-transform duration-200 transform hover:scale-105 flex items-center justify-center space-x-2"
           >
-            Auth with Google
+            <i class="fa-brands fa-google text-lg"></i>
+            <span>Google</span>
           </button>
           <button
             id="authAppleBtn"
-            class="w-full px-6 py-3 bg-gray-900 hover:bg-black text-white font-semibold rounded-lg shadow-lg transition-transform duration-200 transform hover:scale-105"
+            class="w-full px-6 py-4 bg-gray-900 hover:bg-black text-white font-semibold rounded-lg shadow-lg transition-transform duration-200 transform hover:scale-105 flex items-center justify-center space-x-2"
           >
-            Auth with Apple
+            <i class="fa-brands fa-apple text-lg"></i>
+            <span>Apple</span>
+          </button>
+          <button
+            id="showEmailAuthBtn"
+            class="w-full px-6 py-4 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg shadow-lg transition-transform duration-200 transform hover:scale-105 flex items-center justify-center space-x-2"
+          >
+            <i class="fa-solid fa-envelope text-lg"></i>
+            <span>Email</span>
           </button>
         </div>
 
         <!-- Email & Password Inputs and Buttons -->
-        <div class="mt-8 space-y-4">
+        <div id="emailAuthContainer" class="mt-8 space-y-4 hidden">
           <h2 class="text-xl font-bold text-white mb-4">
             Email & Password Auth
           </h2>
@@ -120,7 +117,7 @@
               id="authEmailPasswordBtn"
               class="w-full px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg shadow-lg transition-transform duration-200 transform hover:scale-105"
             >
-              Sign In/Up with Email
+              Sign In/Up
             </button>
             <button
               id="verifyEmailBtn"
@@ -136,15 +133,66 @@
           <h2 class="text-xl font-bold text-white mb-4">
             Authenticated User ID Token
           </h2>
-          <textarea
-            id="outputToken"
-            rows="10"
-            class="w-full p-4 bg-gray-900 rounded-lg text-gray-300 font-mono text-sm break-words focus:outline-none"
-            readonly
-          >
+          <div class="relative">
+            <textarea
+              id="outputToken"
+              rows="10"
+              class="w-full p-4 pr-16 bg-gray-900 rounded-lg text-gray-300 font-mono text-sm break-words focus:outline-none"
+              readonly
+            >
 Your ID token will appear here after successful login.</textarea
-          >
+            >
+            <button
+              id="copyTokenBtn"
+              class="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors duration-200"
+            >
+              <i class="fa-solid fa-clipboard text-lg"></i>
+            </button>
+          </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div
+      id="settingsModal"
+      class="modal fixed inset-0 z-50 flex items-center justify-center p-4"
+    >
+      <div id="modalOverlay" class="modal-overlay absolute inset-0"></div>
+      <div
+        class="modal-content relative bg-gray-800 rounded-xl shadow-2xl p-8 max-w-lg w-full"
+      >
+        <button
+          id="closeModalBtn"
+          class="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors duration-200"
+        >
+          <i class="fa-solid fa-times text-2xl"></i>
+        </button>
+        <h2 class="text-2xl font-bold text-white mb-6 text-center">
+          Firebase Settings
+        </h2>
+        <div>
+          <label
+            for="firebaseConfig"
+            class="block text-sm font-medium text-gray-400 mb-2"
+            >Firebase Config Object</label
+          >
+          <textarea
+            id="firebaseConfig"
+            rows="8"
+            class="block w-full px-4 py-3 bg-gray-700 rounded-lg text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
+            placeholder="Paste your entire firebaseConfig object (including curly braces) from Firebase Project Settings..."
+          ></textarea>
+          <p class="text-xs text-gray-500 mt-2">
+            The config will be saved locally in your browser.
+          </p>
+        </div>
+        <button
+          id="saveConfigBtn"
+          class="w-full mt-6 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-lg transition-transform duration-200 transform hover:scale-105"
+        >
+          Save & Initialize
+        </button>
       </div>
     </div>
 
@@ -167,15 +215,11 @@ Your ID token will appear here after successful login.</textarea
       let app;
       let db;
 
-      const serviceAccountConfigInput = document.getElementById(
-        "serviceAccountConfig"
-      );
-      const webApiKeyInput = document.getElementById("webApiKey");
-      const initializeFirebaseBtn = document.getElementById(
-        "initializeFirebaseBtn"
-      );
+      // UI elements
+      const firebaseConfigInput = document.getElementById("firebaseConfig");
       const authGoogleBtn = document.getElementById("authGoogleBtn");
       const authAppleBtn = document.getElementById("authAppleBtn");
+      const showEmailAuthBtn = document.getElementById("showEmailAuthBtn");
       const authEmailPasswordBtn = document.getElementById(
         "authEmailPasswordBtn"
       );
@@ -184,6 +228,12 @@ Your ID token will appear here after successful login.</textarea
       const passwordInput = document.getElementById("passwordInput");
       const outputToken = document.getElementById("outputToken");
       const messageBox = document.getElementById("message-box");
+      const copyTokenBtn = document.getElementById("copyTokenBtn");
+      const settingsBtn = document.getElementById("settingsBtn");
+      const settingsModal = document.getElementById("settingsModal");
+      const closeModalBtn = document.getElementById("closeModalBtn");
+      const saveConfigBtn = document.getElementById("saveConfigBtn");
+      const emailAuthContainer = document.getElementById("emailAuthContainer");
 
       function showMessage(message, type = "info") {
         let bgColor, textColor;
@@ -201,38 +251,12 @@ Your ID token will appear here after successful login.</textarea
         messageBox.className = `block mb-4 p-4 rounded-lg text-sm ${bgColor} ${textColor}`;
       }
 
-      initializeFirebaseBtn.addEventListener("click", () => {
+      function initializeFirebase(config) {
         try {
-          const serviceConfigJson = JSON.parse(serviceAccountConfigInput.value);
-          const webApiKey = webApiKeyInput.value;
-
-          if (!serviceConfigJson || !webApiKey) {
-            throw new Error(
-              "Please provide both Service Account Config and Web App API Key."
-            );
-          }
-
-          const firebaseConfig = {
-            apiKey: webApiKey,
-            authDomain: serviceConfigJson.auth_uri.split("/")[2],
-            projectId: serviceConfigJson.project_id,
-            storageBucket: serviceConfigJson.auth_uri
-              .split("/")[2]
-              .replace(".firebaseapp.com", ".appspot.com"),
-            messagingSenderId: serviceConfigJson.private_key_id, // This is just a placeholder, in a real app you'd use the correct one
-            appId:
-              "1:" +
-              serviceConfigJson.private_key_id +
-              ":web:" +
-              serviceConfigJson.project_id, // Placeholder
-            measurementId: "G-" + serviceConfigJson.private_key_id, // Placeholder
-          };
-
-          app = initializeApp(firebaseConfig);
+          app = initializeApp(config);
           auth = getAuth(app);
           db = getFirestore(app);
 
-          // Set up a listener for auth state changes
           onAuthStateChanged(auth, async (user) => {
             if (user) {
               try {
@@ -263,17 +287,83 @@ Your ID token will appear here after successful login.</textarea
           showMessage(`Error initializing Firebase: ${error.message}`, "error");
           console.error("Initialization error:", error);
         }
+      }
+
+      // Load config from local storage on page load
+      window.addEventListener("load", () => {
+        const storedConfig = localStorage.getItem("firebaseConfig");
+        if (storedConfig) {
+          firebaseConfigInput.value = storedConfig;
+          try {
+            const config = eval("(" + storedConfig + ")");
+            initializeFirebase(config);
+          } catch (e) {
+            showMessage(
+              "Stored Firebase config is invalid. Please update it in settings.",
+              "error"
+            );
+          }
+        } else {
+          showMessage(
+            "Please enter your Firebase config in the settings to get started.",
+            "info"
+          );
+        }
+      });
+
+      // Event listeners
+      settingsBtn.addEventListener("click", () => {
+        settingsModal.classList.remove("hidden");
+      });
+
+      closeModalBtn.addEventListener("click", () => {
+        settingsModal.classList.add("hidden");
+      });
+
+      saveConfigBtn.addEventListener("click", () => {
+        const configString = firebaseConfigInput.value.trim();
+        if (configString) {
+          localStorage.setItem("firebaseConfig", configString);
+          try {
+            const config = eval("(" + configString + ")");
+            initializeFirebase(config);
+            settingsModal.classList.add("hidden");
+          } catch (e) {
+            showMessage(
+              "Invalid Firebase Config object. Please check the syntax.",
+              "error"
+            );
+          }
+        } else {
+          showMessage("Please enter a config object.", "error");
+        }
+      });
+
+      showEmailAuthBtn.addEventListener("click", () => {
+        emailAuthContainer.classList.toggle("hidden");
       });
 
       authGoogleBtn.addEventListener("click", async () => {
         if (!auth) {
-          showMessage("Please initialize Firebase first.", "error");
+          showMessage(
+            "Please initialize Firebase first using the settings button.",
+            "error"
+          );
           return;
         }
         try {
           const provider = new GoogleAuthProvider();
-          await signInWithPopup(auth, provider);
-          // onAuthStateChanged listener will handle the rest
+          showMessage("Opening Google sign-in pop-up...", "info");
+          const result = await signInWithPopup(auth, provider);
+          const user = result.user;
+          const idToken = await user.getIdToken();
+          outputToken.value = idToken;
+          showMessage(
+            `Sign-in successful for ${
+              user.email || user.displayName
+            }. ID Token retrieved.`,
+            "success"
+          );
         } catch (error) {
           showMessage(`Google Auth Error: ${error.message}`, "error");
           console.error("Google Auth Error:", error);
@@ -282,13 +372,25 @@ Your ID token will appear here after successful login.</textarea
 
       authAppleBtn.addEventListener("click", async () => {
         if (!auth) {
-          showMessage("Please initialize Firebase first.", "error");
+          showMessage(
+            "Please initialize Firebase first using the settings button.",
+            "error"
+          );
           return;
         }
         try {
           const provider = new OAuthProvider("apple.com");
-          await signInWithPopup(auth, provider);
-          // onAuthStateChanged listener will handle the rest
+          showMessage("Opening Apple sign-in pop-up...", "info");
+          const result = await signInWithPopup(auth, provider);
+          const user = result.user;
+          const idToken = await user.getIdToken();
+          outputToken.value = idToken;
+          showMessage(
+            `Sign-in successful for ${
+              user.email || user.displayName
+            }. ID Token retrieved.`,
+            "success"
+          );
         } catch (error) {
           showMessage(`Apple Auth Error: ${error.message}`, "error");
           console.error("Apple Auth Error:", error);
@@ -297,7 +399,10 @@ Your ID token will appear here after successful login.</textarea
 
       authEmailPasswordBtn.addEventListener("click", async () => {
         if (!auth) {
-          showMessage("Please initialize Firebase first.", "error");
+          showMessage(
+            "Please initialize Firebase first using the settings button.",
+            "error"
+          );
           return;
         }
         const email = emailInput.value;
@@ -308,11 +413,13 @@ Your ID token will appear here after successful login.</textarea
         }
 
         try {
-          // First, try to sign in. If it fails (user not found), try to create a new user.
           await signInWithEmailAndPassword(auth, email, password);
           showMessage("Signed in with email/password.", "success");
         } catch (signInError) {
-          if (signInError.code === "auth/user-not-found") {
+          if (
+            signInError.code === "auth/user-not-found" ||
+            signInError.code === "auth/wrong-password"
+          ) {
             try {
               await createUserWithEmailAndPassword(auth, email, password);
               showMessage(
@@ -353,6 +460,34 @@ Your ID token will appear here after successful login.</textarea
             "error"
           );
           console.error("Email verification error:", error);
+        }
+      });
+
+      copyTokenBtn.addEventListener("click", async () => {
+        const token = outputToken.value;
+        if (
+          token &&
+          token !== "Your ID token will appear here after successful login."
+        ) {
+          try {
+            // Use the modern Clipboard API
+            await navigator.clipboard.writeText(token);
+            showMessage("ID Token copied to clipboard!", "success");
+          } catch (err) {
+            // Fallback for older browsers
+            const textarea = document.createElement("textarea");
+            textarea.value = token;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand("copy");
+            document.body.removeChild(textarea);
+            showMessage(
+              "ID Token copied to clipboard! (using fallback method)",
+              "success"
+            );
+          }
+        } else {
+          showMessage("No token to copy.", "error");
         }
       });
     </script>
