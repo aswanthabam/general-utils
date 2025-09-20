@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Firebase Auth Tester</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: #1a202c;
+        color: #e2e8f0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="max-w-4xl w-full mx-auto p-8 bg-gray-800 rounded-xl shadow-2xl">
+      <h1 class="text-3xl font-bold text-center mb-6 text-white">
+        Firebase Authentication Tester
+      </h1>
+
+      <!-- Message Box -->
+      <div
+        id="message-box"
+        class="hidden mb-4 p-4 rounded-lg text-sm"
+        role="alert"
+      ></div>
+
+      <div class="space-y-6">
+        <!-- Input for Service Account Config -->
+        <div>
+          <label
+            for="serviceAccountConfig"
+            class="block text-sm font-medium text-gray-400 mb-2"
+            >Service Account Config (JSON)</label
+          >
+          <textarea
+            id="serviceAccountConfig"
+            rows="8"
+            class="block w-full px-4 py-3 bg-gray-700 rounded-lg text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
+            placeholder="Paste your Firebase service account JSON here..."
+          ></textarea>
+        </div>
+
+        <!-- Input for Web App API Key -->
+        <div>
+          <label
+            for="webApiKey"
+            class="block text-sm font-medium text-gray-400 mb-2"
+            >Web App API Key</label
+          >
+          <input
+            type="text"
+            id="webApiKey"
+            class="block w-full px-4 py-3 bg-gray-700 rounded-lg text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
+            placeholder="Enter your Firebase Web App API Key"
+          />
+        </div>
+
+        <!-- Buttons to Initialize and Authenticate -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <button
+            id="initializeFirebaseBtn"
+            class="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-lg transition-transform duration-200 transform hover:scale-105"
+          >
+            Initialize Firebase
+          </button>
+          <button
+            id="authGoogleBtn"
+            class="w-full px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-lg transition-transform duration-200 transform hover:scale-105"
+          >
+            Auth with Google
+          </button>
+          <button
+            id="authAppleBtn"
+            class="w-full px-6 py-3 bg-gray-900 hover:bg-black text-white font-semibold rounded-lg shadow-lg transition-transform duration-200 transform hover:scale-105"
+          >
+            Auth with Apple
+          </button>
+        </div>
+
+        <!-- Email & Password Inputs and Buttons -->
+        <div class="mt-8 space-y-4">
+          <h2 class="text-xl font-bold text-white mb-4">
+            Email & Password Auth
+          </h2>
+          <div>
+            <label
+              for="emailInput"
+              class="block text-sm font-medium text-gray-400 mb-2"
+              >Email</label
+            >
+            <input
+              type="email"
+              id="emailInput"
+              class="block w-full px-4 py-3 bg-gray-700 rounded-lg text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors duration-200"
+              placeholder="Enter email"
+            />
+          </div>
+          <div>
+            <label
+              for="passwordInput"
+              class="block text-sm font-medium text-gray-400 mb-2"
+              >Password</label
+            >
+            <input
+              type="password"
+              id="passwordInput"
+              class="block w-full px-4 py-3 bg-gray-700 rounded-lg text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors duration-200"
+              placeholder="Enter password"
+            />
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <button
+              id="authEmailPasswordBtn"
+              class="w-full px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg shadow-lg transition-transform duration-200 transform hover:scale-105"
+            >
+              Sign In/Up with Email
+            </button>
+            <button
+              id="verifyEmailBtn"
+              class="w-full px-6 py-3 bg-yellow-600 hover:bg-yellow-700 text-white font-semibold rounded-lg shadow-lg transition-transform duration-200 transform hover:scale-105"
+            >
+              Send Verification Email
+            </button>
+          </div>
+        </div>
+
+        <!-- Output for ID Token -->
+        <div class="mt-8">
+          <h2 class="text-xl font-bold text-white mb-4">
+            Authenticated User ID Token
+          </h2>
+          <textarea
+            id="outputToken"
+            rows="10"
+            class="w-full p-4 bg-gray-900 rounded-lg text-gray-300 font-mono text-sm break-words focus:outline-none"
+            readonly
+          >
+Your ID token will appear here after successful login.</textarea
+          >
+        </div>
+      </div>
+    </div>
+
+    <!-- Firebase JS SDKs -->
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+      import {
+        getAuth,
+        GoogleAuthProvider,
+        signInWithPopup,
+        signInWithEmailAndPassword,
+        sendEmailVerification,
+        OAuthProvider,
+        onAuthStateChanged,
+        createUserWithEmailAndPassword,
+      } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+      import { getFirestore } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+      let auth;
+      let app;
+      let db;
+
+      const serviceAccountConfigInput = document.getElementById(
+        "serviceAccountConfig"
+      );
+      const webApiKeyInput = document.getElementById("webApiKey");
+      const initializeFirebaseBtn = document.getElementById(
+        "initializeFirebaseBtn"
+      );
+      const authGoogleBtn = document.getElementById("authGoogleBtn");
+      const authAppleBtn = document.getElementById("authAppleBtn");
+      const authEmailPasswordBtn = document.getElementById(
+        "authEmailPasswordBtn"
+      );
+      const verifyEmailBtn = document.getElementById("verifyEmailBtn");
+      const emailInput = document.getElementById("emailInput");
+      const passwordInput = document.getElementById("passwordInput");
+      const outputToken = document.getElementById("outputToken");
+      const messageBox = document.getElementById("message-box");
+
+      function showMessage(message, type = "info") {
+        let bgColor, textColor;
+        if (type === "success") {
+          bgColor = "bg-green-500";
+          textColor = "text-green-900";
+        } else if (type === "error") {
+          bgColor = "bg-red-500";
+          textColor = "text-red-900";
+        } else {
+          bgColor = "bg-blue-500";
+          textColor = "text-blue-900";
+        }
+        messageBox.textContent = message;
+        messageBox.className = `block mb-4 p-4 rounded-lg text-sm ${bgColor} ${textColor}`;
+      }
+
+      initializeFirebaseBtn.addEventListener("click", () => {
+        try {
+          const serviceConfigJson = JSON.parse(serviceAccountConfigInput.value);
+          const webApiKey = webApiKeyInput.value;
+
+          if (!serviceConfigJson || !webApiKey) {
+            throw new Error(
+              "Please provide both Service Account Config and Web App API Key."
+            );
+          }
+
+          const firebaseConfig = {
+            apiKey: webApiKey,
+            authDomain: serviceConfigJson.auth_uri.split("/")[2],
+            projectId: serviceConfigJson.project_id,
+            storageBucket: serviceConfigJson.auth_uri
+              .split("/")[2]
+              .replace(".firebaseapp.com", ".appspot.com"),
+            messagingSenderId: serviceConfigJson.private_key_id, // This is just a placeholder, in a real app you'd use the correct one
+            appId:
+              "1:" +
+              serviceConfigJson.private_key_id +
+              ":web:" +
+              serviceConfigJson.project_id, // Placeholder
+            measurementId: "G-" + serviceConfigJson.private_key_id, // Placeholder
+          };
+
+          app = initializeApp(firebaseConfig);
+          auth = getAuth(app);
+          db = getFirestore(app);
+
+          // Set up a listener for auth state changes
+          onAuthStateChanged(auth, async (user) => {
+            if (user) {
+              try {
+                const idToken = await user.getIdToken();
+                outputToken.value = idToken;
+                showMessage(
+                  `Signed in as ${
+                    user.email || user.displayName || "a user"
+                  }. ID Token retrieved successfully.`,
+                  "success"
+                );
+              } catch (error) {
+                showMessage(
+                  `Error getting ID token: ${error.message}`,
+                  "error"
+                );
+                console.error("Error getting ID token:", error);
+              }
+            } else {
+              outputToken.value =
+                "Your ID token will appear here after successful login.";
+              showMessage("No user is currently signed in.");
+            }
+          });
+
+          showMessage("Firebase initialized successfully!", "success");
+        } catch (error) {
+          showMessage(`Error initializing Firebase: ${error.message}`, "error");
+          console.error("Initialization error:", error);
+        }
+      });
+
+      authGoogleBtn.addEventListener("click", async () => {
+        if (!auth) {
+          showMessage("Please initialize Firebase first.", "error");
+          return;
+        }
+        try {
+          const provider = new GoogleAuthProvider();
+          await signInWithPopup(auth, provider);
+          // onAuthStateChanged listener will handle the rest
+        } catch (error) {
+          showMessage(`Google Auth Error: ${error.message}`, "error");
+          console.error("Google Auth Error:", error);
+        }
+      });
+
+      authAppleBtn.addEventListener("click", async () => {
+        if (!auth) {
+          showMessage("Please initialize Firebase first.", "error");
+          return;
+        }
+        try {
+          const provider = new OAuthProvider("apple.com");
+          await signInWithPopup(auth, provider);
+          // onAuthStateChanged listener will handle the rest
+        } catch (error) {
+          showMessage(`Apple Auth Error: ${error.message}`, "error");
+          console.error("Apple Auth Error:", error);
+        }
+      });
+
+      authEmailPasswordBtn.addEventListener("click", async () => {
+        if (!auth) {
+          showMessage("Please initialize Firebase first.", "error");
+          return;
+        }
+        const email = emailInput.value;
+        const password = passwordInput.value;
+        if (!email || !password) {
+          showMessage("Please enter both email and password.", "error");
+          return;
+        }
+
+        try {
+          // First, try to sign in. If it fails (user not found), try to create a new user.
+          await signInWithEmailAndPassword(auth, email, password);
+          showMessage("Signed in with email/password.", "success");
+        } catch (signInError) {
+          if (signInError.code === "auth/user-not-found") {
+            try {
+              await createUserWithEmailAndPassword(auth, email, password);
+              showMessage(
+                "User created and signed in with email/password.",
+                "success"
+              );
+            } catch (createError) {
+              showMessage(
+                `Error signing in/up with email: ${createError.message}`,
+                "error"
+              );
+              console.error("Email/Password Auth Error:", createError);
+            }
+          } else {
+            showMessage(
+              `Error signing in with email: ${signInError.message}`,
+              "error"
+            );
+            console.error("Email/Password Auth Error:", signInError);
+          }
+        }
+      });
+
+      verifyEmailBtn.addEventListener("click", async () => {
+        if (!auth || !auth.currentUser) {
+          showMessage("Please sign in with email/password first.", "error");
+          return;
+        }
+        try {
+          await sendEmailVerification(auth.currentUser);
+          showMessage(
+            "Verification email sent! Please check your inbox.",
+            "success"
+          );
+        } catch (error) {
+          showMessage(
+            `Error sending verification email: ${error.message}`,
+            "error"
+          );
+          console.error("Email verification error:", error);
+        }
+      });
+    </script>
+  </body>
+</html>
