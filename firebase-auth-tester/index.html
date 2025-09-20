@@ -37,12 +37,20 @@
     <div
       class="max-w-4xl w-full mx-auto p-8 bg-gray-800 rounded-xl shadow-2xl relative"
     >
-      <button
-        id="settingsBtn"
-        class="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors duration-200"
-      >
-        <i class="fa-solid fa-cog text-2xl"></i>
-      </button>
+      <div class="absolute top-4 right-4 flex space-x-2">
+        <button
+          id="helpBtn"
+          class="text-gray-400 hover:text-white transition-colors duration-200"
+        >
+          <i class="fa-solid fa-circle-info text-2xl"></i>
+        </button>
+        <button
+          id="settingsBtn"
+          class="text-gray-400 hover:text-white transition-colors duration-200"
+        >
+          <i class="fa-solid fa-cog text-2xl"></i>
+        </button>
+      </div>
 
       <h1 class="text-3xl font-bold text-center mb-6 text-white">
         Firebase Authentication Tester
@@ -163,7 +171,7 @@ Your ID token will appear here after successful login.</textarea
         class="modal-content relative bg-gray-800 rounded-xl shadow-2xl p-8 max-w-lg w-full"
       >
         <button
-          id="closeModalBtn"
+          id="closeSettingsModalBtn"
           class="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors duration-200"
         >
           <i class="fa-solid fa-times text-2xl"></i>
@@ -193,6 +201,89 @@ Your ID token will appear here after successful login.</textarea
         >
           Save & Initialize
         </button>
+      </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div
+      id="helpModal"
+      class="modal fixed inset-0 z-50 flex items-center justify-center p-4 hidden"
+    >
+      <div id="helpModalOverlay" class="modal-overlay absolute inset-0"></div>
+      <div
+        class="modal-content relative bg-gray-800 rounded-xl shadow-2xl p-8 max-w-lg w-full"
+      >
+        <button
+          id="closeHelpModalBtn"
+          class="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors duration-200"
+        >
+          <i class="fa-solid fa-times text-2xl"></i>
+        </button>
+        <h2 class="text-2xl font-bold text-white mb-6 text-center">
+          Help & Instructions
+        </h2>
+        <div class="space-y-6 max-h-96 overflow-y-auto">
+          <div>
+            <h3 class="text-xl font-bold text-gray-300 mb-2">
+              What is Firebase Config?
+            </h3>
+            <p class="text-gray-400">
+              The **Firebase Config Object** is a set of keys and identifiers
+              that connect this web page to your specific Firebase project. It
+              contains details like your API Key, Project ID, and more. Without
+              it, the application doesn't know which Firebase project to
+              authenticate against.
+            </p>
+          </div>
+          <div>
+            <h3 class="text-xl font-bold text-gray-300 mb-2">
+              Where do I get the Firebase Config?
+            </h3>
+            <p class="text-gray-400">
+              To get your project's config, follow these steps in the Firebase
+              console:
+            </p>
+            <ol class="list-decimal list-inside text-gray-400 space-y-2 mt-2">
+              <li>
+                Go to **Project settings** (the gear icon) in your Firebase
+                project.
+              </li>
+              <li>Under the "General" tab, find the "Your apps" section.</li>
+              <li>Click on the **"Config"** button for your web app.</li>
+              <li>
+                Copy the entire JavaScript object and paste it into the settings
+                pop-up on this page.
+              </li>
+            </ol>
+          </div>
+          <div>
+            <h3 class="text-xl font-bold text-gray-300 mb-2">
+              How to fix "Unauthorized Domain" errors?
+            </h3>
+            <p class="text-gray-400">
+              This error means the domain where this app is running is not a
+              trusted domain for authentication. To fix it, you must add it to
+              your Firebase project's authorized domains.
+            </p>
+            <ol class="list-decimal list-inside text-gray-400 space-y-2 mt-2">
+              <li>
+                Go to the **Authentication** section in your Firebase project
+                console.
+              </li>
+              <li>Click on the **"Settings"** tab.</li>
+              <li>
+                In the **"Authorized domains"** section, click **"Add domain"**.
+              </li>
+              <li>
+                Add the following domain:
+                <code class="bg-gray-700 p-1 rounded"
+                  >https://aswanthabam.github.io</code
+                >
+              </li>
+              <li>Click **"Add"** to save your changes.</li>
+            </ol>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -230,8 +321,13 @@ Your ID token will appear here after successful login.</textarea
       const messageBox = document.getElementById("message-box");
       const copyTokenBtn = document.getElementById("copyTokenBtn");
       const settingsBtn = document.getElementById("settingsBtn");
+      const helpBtn = document.getElementById("helpBtn");
       const settingsModal = document.getElementById("settingsModal");
-      const closeModalBtn = document.getElementById("closeModalBtn");
+      const helpModal = document.getElementById("helpModal");
+      const closeSettingsModalBtn = document.getElementById(
+        "closeSettingsModalBtn"
+      );
+      const closeHelpModalBtn = document.getElementById("closeHelpModalBtn");
       const saveConfigBtn = document.getElementById("saveConfigBtn");
       const emailAuthContainer = document.getElementById("emailAuthContainer");
 
@@ -311,13 +407,21 @@ Your ID token will appear here after successful login.</textarea
         }
       });
 
-      // Event listeners
+      // Event listeners for modals
       settingsBtn.addEventListener("click", () => {
         settingsModal.classList.remove("hidden");
       });
 
-      closeModalBtn.addEventListener("click", () => {
+      helpBtn.addEventListener("click", () => {
+        helpModal.classList.remove("hidden");
+      });
+
+      closeSettingsModalBtn.addEventListener("click", () => {
         settingsModal.classList.add("hidden");
+      });
+
+      closeHelpModalBtn.addEventListener("click", () => {
+        helpModal.classList.add("hidden");
       });
 
       saveConfigBtn.addEventListener("click", () => {
@@ -339,6 +443,7 @@ Your ID token will appear here after successful login.</textarea
         }
       });
 
+      // Event listeners for auth methods
       showEmailAuthBtn.addEventListener("click", () => {
         emailAuthContainer.classList.toggle("hidden");
       });
@@ -470,11 +575,9 @@ Your ID token will appear here after successful login.</textarea
           token !== "Your ID token will appear here after successful login."
         ) {
           try {
-            // Use the modern Clipboard API
             await navigator.clipboard.writeText(token);
             showMessage("ID Token copied to clipboard!", "success");
           } catch (err) {
-            // Fallback for older browsers
             const textarea = document.createElement("textarea");
             textarea.value = token;
             document.body.appendChild(textarea);
