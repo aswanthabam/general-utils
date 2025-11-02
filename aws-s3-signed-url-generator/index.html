@@ -147,7 +147,7 @@
         <h1>S3 Signed URL Generator</h1>
         
         <div class="warning">
-            ⚠️ **SECURITY ALERT:** Storing and using your **Secret Access Key** on the client side is a severe security vulnerability. Use this tool only with **temporary, highly restricted credentials** for testing purposes.
+            ⚠️ **ENCRYPTION NOTE:** The keys are now encrypted in local storage, which protects against casual inspection. However, since the decryption key is in this file, a determined attacker can still retrieve your credentials. Use this only for **temporary, highly restricted credentials** for testing.
         </div>
 
         <form id="url-generator-form">
@@ -181,40 +181,132 @@
             const signedUrlDisplay = document.getElementById('signedUrlDisplay');
             const copyUrlBtn = document.getElementById('copyUrlBtn');
             const openUrlLink = document.getElementById('openUrlLink');
+            
+            // --- Encryption Constants (Used for persistent key generation) ---
+            const ENCRYPTION_PASSPHRASE = "4N7WWSx7bH6HFcJVP0CRSYiLy8nPJn";
+            const SALT = new TextEncoder().encode("s3url-enc-salt-v1");
+            const IV_LENGTH = 12; // 12 bytes for AES-GCM
 
             // LocalStorage Keys
             const LS_KEYS = {
-                ACCESS_KEY: 's3_access_key',
-                SECRET_KEY: 's3_secret_key',
+                ENCRYPTED_KEYS: 's3_keys_enc', // Combined Acess Key ID and Secret Key
                 REGION: 's3_region',
                 BUCKET: 's3_bucket',
                 FILE_PATH: 's3_file_path',
                 EXPIRES: 's3_expires'
             };
 
-            // Function to load stored inputs from LocalStorage
-            function loadInputs() {
-                document.getElementById('accessKeyId').value = localStorage.getItem(LS_KEYS.ACCESS_KEY) || '';
-                // Note: We intentionally load the secret key to fulfill the user request, despite the risk.
-                document.getElementById('secretAccessKey').value = localStorage.getItem(LS_KEYS.SECRET_KEY) || '';
-                document.getElementById('region').value = localStorage.getItem(LS_KEYS.REGION) || 'us-east-1';
-                document.getElementById('bucketName').value = localStorage.getItem(LS_KEYS.BUCKET) || '';
-                document.getElementById('filePath').value = localStorage.getItem(LS_KEYS.FILE_PATH) || '';
-                document.getElementById('expires').value = localStorage.getItem(LS_KEYS.EXPIRES) || '3600';
+            // --- Web Crypto Functions ---
+
+            /** Derives a persistent crypto key from the passphrase and salt. */
+            async function getEncryptionKey() {
+                const enc = new TextEncoder();
+                const keyMaterial = await crypto.subtle.importKey(
+                    "raw",
+                    enc.encode(ENCRYPTION_PASSPHRASE),
+                    { name: "PBKDF2" },
+                    false,
+                    ["deriveKey"]
+                );
+
+                return crypto.subtle.deriveKey(
+                    {
+                        name: "PBKDF2",
+                        salt: SALT,
+                        iterations: 100000,
+                        hash: "SHA-256"
+                    },
+                    keyMaterial,
+                    { name: "AES-GCM", length: 256 },
+                    true,
+                    ["encrypt", "decrypt"]
+                );
             }
 
-            // Function to store current inputs to LocalStorage
-            function storeInputs(accessKeyId, secretAccessKey, region, bucketName, filePath, expires) {
-                localStorage.setItem(LS_KEYS.ACCESS_KEY, accessKeyId);
-                localStorage.setItem(LS_KEYS.SECRET_KEY, secretAccessKey);
+            /** Encrypts data and returns IV + Ciphertext as a base64 string. */
+            async function encryptData(data) {
+                const key = await getEncryptionKey();
+                const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
+                const encodedData = new TextEncoder().encode(JSON.stringify(data));
+                
+                const ciphertext = await crypto.subtle.encrypt(
+                    { name: "AES-GCM", iv: iv },
+                    key,
+                    encodedData
+                );
+                
+                // Combine IV and Ciphertext for storage
+                const combined = new Uint8Array(iv.length + ciphertext.byteLength);
+                combined.set(iv, 0);
+                combined.set(new Uint8Array(ciphertext), iv.length);
+
+                return btoa(String.fromCharCode.apply(null, combined));
+            }
+
+            /** Decrypts a base64 string (containing IV and Ciphertext) and returns the data object. */
+            async function decryptData(encryptedBase64) {
+                const key = await getEncryptionKey();
+                
+                const combined = Uint8Array.from(atob(encryptedBase64), c => c.charCodeAt(0));
+                
+                const iv = combined.slice(0, IV_LENGTH);
+                const ciphertext = combined.slice(IV_LENGTH);
+
+                const decryptedBuffer = await crypto.subtle.decrypt(
+                    { name: "AES-GCM", iv: iv },
+                    key,
+                    ciphertext
+                );
+                
+                const decryptedText = new TextDecoder().decode(decryptedBuffer);
+                return JSON.parse(decryptedText);
+            }
+            
+            // --- LocalStorage Logic ---
+
+            /** Stores inputs, encrypting the sensitive keys. */
+            async function storeInputs(accessKeyId, secretAccessKey, region, bucketName, filePath, expires) {
+                // Store non-sensitive data directly
                 localStorage.setItem(LS_KEYS.REGION, region);
                 localStorage.setItem(LS_KEYS.BUCKET, bucketName);
                 localStorage.setItem(LS_KEYS.FILE_PATH, filePath);
                 localStorage.setItem(LS_KEYS.EXPIRES, expires);
+                
+                // Encrypt and store the sensitive keys
+                const keysToEncrypt = { accessKeyId, secretAccessKey };
+                try {
+                    const encrypted = await encryptData(keysToEncrypt);
+                    localStorage.setItem(LS_KEYS.ENCRYPTED_KEYS, encrypted);
+                } catch (e) {
+                    console.error("Encryption failed:", e);
+                }
+            }
+
+            /** Loads inputs, decrypting the sensitive keys. */
+            async function loadInputs() {
+                // Load non-sensitive data
+                document.getElementById('region').value = localStorage.getItem(LS_KEYS.REGION) || 'us-east-1';
+                document.getElementById('bucketName').value = localStorage.getItem(LS_KEYS.BUCKET) || '';
+                document.getElementById('filePath').value = localStorage.getItem(LS_KEYS.FILE_PATH) || '';
+                document.getElementById('expires').value = localStorage.getItem(LS_KEYS.EXPIRES) || '3600';
+                
+                // Load and decrypt sensitive keys
+                const encryptedKeys = localStorage.getItem(LS_KEYS.ENCRYPTED_KEYS);
+                if (encryptedKeys) {
+                    try {
+                        const decryptedKeys = await decryptData(encryptedKeys);
+                        document.getElementById('accessKeyId').value = decryptedKeys.accessKeyId || '';
+                        document.getElementById('secretAccessKey').value = decryptedKeys.secretAccessKey || '';
+                    } catch (e) {
+                        console.error("Decryption failed. Clearing encrypted storage.", e);
+                        // If decryption fails (e.g., key/salt changed, or corrupted data), clear the encrypted item
+                        localStorage.removeItem(LS_KEYS.ENCRYPTED_KEYS);
+                    }
+                }
             }
 
             // --- Form Submission Handler ---
-            form.addEventListener('submit', (e) => {
+            form.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 resultContainer.classList.add('hidden'); // Hide previous result
 
@@ -232,8 +324,8 @@
                     return;
                 }
 
-                // Store inputs for the next session
-                storeInputs(accessKeyId, secretAccessKey, region, bucketName, filePath, expires);
+                // Store inputs, encrypting keys
+                await storeInputs(accessKeyId, secretAccessKey, region, bucketName, filePath, expires);
 
                 try {
                     // Configure AWS SDK credentials and region
