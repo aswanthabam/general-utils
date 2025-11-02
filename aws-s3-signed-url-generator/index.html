@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S3 Signed URL Generator</title>
+    <!-- Load AWS SDK -->
+    <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1485.0.min.js"></script>
+    <style>
+        /* General Styles and Responsiveness */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 650px;
+        }
+
+        h1 {
+            color: #1e40af;
+            text-align: center;
+            margin-bottom: 25px;
+            font-size: 1.8rem;
+            border-bottom: 2px solid #e0e7ff;
+            padding-bottom: 10px;
+        }
+
+        h2 {
+            color: #4b5563;
+            font-size: 1.25rem;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+
+        /* Input Styling */
+        input[type="text"], 
+        input[type="password"],
+        input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0 15px 0;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 16px;
+            transition: border-color 0.2s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+
+        /* Button Styling */
+        button, .button {
+            background-color: #3b82f6;
+            color: white;
+            padding: 12px 20px;
+            margin-top: 15px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s, transform 0.1s;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        button:hover, .button:hover {
+            background-color: #2563eb;
+            transform: translateY(-1px);
+        }
+
+        /* Result Area */
+        #result-container {
+            margin-top: 30px;
+            padding: 20px;
+            border: 2px solid #10b981;
+            border-radius: 8px;
+            background-color: #ecfdf5;
+        }
+
+        #signedUrlDisplay {
+            word-break: break-all;
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px dashed #a7f3d0;
+            font-family: monospace;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap; /* Ensure buttons wrap on small screens */
+        }
+        
+        #copyUrlBtn {
+            background-color: #10b981;
+        }
+        #copyUrlBtn:hover {
+            background-color: #059669;
+        }
+
+        #openUrlLink {
+            background-color: #f59e0b;
+        }
+        #openUrlLink:hover {
+            background-color: #d97706;
+        }
+
+        /* Warning Message */
+        .warning {
+            color: #b91c1c;
+            background-color: #fee2e2;
+            border: 1px solid #fca5a5;
+            padding: 15px;
+            border-radius: 6px;
+            font-weight: 600;
+            line-height: 1.4;
+            margin-bottom: 20px;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>S3 Signed URL Generator</h1>
+        
+        <div class="warning">
+            ⚠️ **SECURITY ALERT:** Storing and using your **Secret Access Key** on the client side is a severe security vulnerability. Use this tool only with **temporary, highly restricted credentials** for testing purposes.
+        </div>
+
+        <form id="url-generator-form">
+            <h2>AWS Credentials & Bucket</h2>
+            <input type="text" id="accessKeyId" placeholder="AWS Access Key ID" required>
+            <input type="password" id="secretAccessKey" placeholder="AWS Secret Access Key" required>
+            <input type="text" id="region" placeholder="S3 Bucket Region (e.g., us-east-1)" value="us-east-1" required>
+            <input type="text" id="bucketName" placeholder="S3 Bucket Name" required>
+
+            <h2>File & Expiration</h2>
+            <input type="text" id="filePath" placeholder="File Path/Key in Bucket (e.g., documents/report.pdf)" required>
+            <input type="number" id="expires" placeholder="Expiration in Seconds (e.g., 3600)" value="3600" required>
+            
+            <button type="submit">✨ Generate Signed URL</button>
+        </form>
+
+        <div id="result-container" class="hidden">
+            <h2>Output Link</h2>
+            <p id="signedUrlDisplay">URL will appear here...</p>
+            <div class="actions">
+                <button id="copyUrlBtn">📋 Copy Link</button>
+                <a id="openUrlLink" href="#" target="_blank" class="button">🔗 Open in New Tab</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('url-generator-form');
+            const resultContainer = document.getElementById('result-container');
+            const signedUrlDisplay = document.getElementById('signedUrlDisplay');
+            const copyUrlBtn = document.getElementById('copyUrlBtn');
+            const openUrlLink = document.getElementById('openUrlLink');
+
+            // LocalStorage Keys
+            const LS_KEYS = {
+                ACCESS_KEY: 's3_access_key',
+                SECRET_KEY: 's3_secret_key',
+                REGION: 's3_region',
+                BUCKET: 's3_bucket',
+                FILE_PATH: 's3_file_path',
+                EXPIRES: 's3_expires'
+            };
+
+            // Function to load stored inputs from LocalStorage
+            function loadInputs() {
+                document.getElementById('accessKeyId').value = localStorage.getItem(LS_KEYS.ACCESS_KEY) || '';
+                // Note: We intentionally load the secret key to fulfill the user request, despite the risk.
+                document.getElementById('secretAccessKey').value = localStorage.getItem(LS_KEYS.SECRET_KEY) || '';
+                document.getElementById('region').value = localStorage.getItem(LS_KEYS.REGION) || 'us-east-1';
+                document.getElementById('bucketName').value = localStorage.getItem(LS_KEYS.BUCKET) || '';
+                document.getElementById('filePath').value = localStorage.getItem(LS_KEYS.FILE_PATH) || '';
+                document.getElementById('expires').value = localStorage.getItem(LS_KEYS.EXPIRES) || '3600';
+            }
+
+            // Function to store current inputs to LocalStorage
+            function storeInputs(accessKeyId, secretAccessKey, region, bucketName, filePath, expires) {
+                localStorage.setItem(LS_KEYS.ACCESS_KEY, accessKeyId);
+                localStorage.setItem(LS_KEYS.SECRET_KEY, secretAccessKey);
+                localStorage.setItem(LS_KEYS.REGION, region);
+                localStorage.setItem(LS_KEYS.BUCKET, bucketName);
+                localStorage.setItem(LS_KEYS.FILE_PATH, filePath);
+                localStorage.setItem(LS_KEYS.EXPIRES, expires);
+            }
+
+            // --- Form Submission Handler ---
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                resultContainer.classList.add('hidden'); // Hide previous result
+
+                const accessKeyId = document.getElementById('accessKeyId').value.trim();
+                const secretAccessKey = document.getElementById('secretAccessKey').value.trim();
+                const region = document.getElementById('region').value.trim();
+                const bucketName = document.getElementById('bucketName').value.trim();
+                const filePath = document.getElementById('filePath').value.trim();
+                const expires = parseInt(document.getElementById('expires').value);
+
+                if (!accessKeyId || !secretAccessKey || !region || !bucketName || !filePath || isNaN(expires)) {
+                    // Using custom message box instead of alert()
+                    signedUrlDisplay.innerHTML = '<span style="color:red; font-weight:bold;">Please fill in all fields correctly.</span>';
+                    resultContainer.classList.remove('hidden');
+                    return;
+                }
+
+                // Store inputs for the next session
+                storeInputs(accessKeyId, secretAccessKey, region, bucketName, filePath, expires);
+
+                try {
+                    // Configure AWS SDK credentials and region
+                    AWS.config.update({
+                        accessKeyId: accessKeyId,
+                        secretAccessKey: secretAccessKey,
+                        region: region
+                    });
+
+                    // Initialize S3 client
+                    const s3 = new AWS.S3({ signatureVersion: 'v4' });
+                    
+                    const params = {
+                        Bucket: bucketName,
+                        Key: filePath,
+                        Expires: expires // Expiration time in seconds
+                    };
+
+                    // Generate the signed URL
+                    const url = s3.getSignedUrl('getObject', params);
+
+                    // Display the result
+                    signedUrlDisplay.textContent = url;
+                    openUrlLink.href = url; // Set the link for "Open in New Tab"
+                    resultContainer.classList.remove('hidden');
+
+                } catch (error) {
+                    console.error('Error generating signed URL:', error);
+                    signedUrlDisplay.innerHTML = `<span style="color:red; font-weight:bold;">Failed to generate URL. Check credentials, region, and paths.</span><br><br>Error: ${error.message}`;
+                    resultContainer.classList.remove('hidden');
+                }
+            });
+
+            // --- Copy to Clipboard functionality ---
+            copyUrlBtn.addEventListener('click', () => {
+                const url = signedUrlDisplay.textContent;
+                navigator.clipboard.writeText(url).then(() => {
+                    copyUrlBtn.textContent = '✅ Copied!';
+                    setTimeout(() => {
+                        copyUrlBtn.textContent = '📋 Copy Link';
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Could not copy text: ', err);
+                    // Fallback for clipboard access issues
+                    const tempInput = document.createElement("textarea");
+                    tempInput.value = url;
+                    document.body.appendChild(tempInput);
+                    tempInput.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(tempInput);
+                    
+                    copyUrlBtn.textContent = '📋 Copy Link (Manual Fallback Used)';
+                });
+            });
+
+            // Initial load of stored data
+            loadInputs();
+        });
+    </script>
+</body>
+</html>
