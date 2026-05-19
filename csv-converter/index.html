@@ -3,540 +3,476 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Advanced Data Converter</title>
+    <title>Advanced CSV/Excel Converter</title>
+    
+    <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SheetJS for reading Excel files -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <!-- Phosphor Icons for better UI elements -->
+    <!-- Phosphor Icons -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        /* Custom scrollbar for pre tag */
+        /* Custom scrollbar for the output area */
         pre::-webkit-scrollbar {
-            width: 8px;
             height: 8px;
+            width: 8px;
         }
         pre::-webkit-scrollbar-track {
-            background: #1e293b; 
+            background: #2d3748; 
             border-radius: 4px;
         }
         pre::-webkit-scrollbar-thumb {
-            background: #475569; 
+            background: #4a5568; 
             border-radius: 4px;
         }
         pre::-webkit-scrollbar-thumb:hover {
-            background: #64748b; 
-        }
-        
-        /* Drag and Drop styles */
-        .drop-zone {
-            transition: all 0.2s ease;
-        }
-        .drop-zone.active {
-            border-color: #3b82f6;
-            background-color: #eff6ff;
+            background: #718096; 
         }
     </style>
 </head>
-<body class="bg-slate-50 min-h-screen text-slate-800 p-4 md:p-8">
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen p-4 md:p-8">
 
-<div class="max-w-5xl mx-auto space-y-6">
-    
-    <!-- Header -->
-    <div class="text-center space-y-2">
-        <h1 class="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight flex items-center justify-center gap-2">
-            <i class="ph ph-file-code text-blue-600"></i>
-            Data Converter
-        </h1>
-        <p class="text-slate-500">Convert CSV & Excel files to JSON or Python Dictionaries instantly.</p>
-    </div>
-
-    <!-- Main Container -->
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col gap-6">
+    <div class="max-w-5xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
         
-        <!-- Input Section -->
-        <div class="space-y-4">
-            <h2 class="text-lg font-semibold flex items-center gap-2">
-                <i class="ph ph-file-arrow-up"></i> Input Data
-            </h2>
+        <!-- Header -->
+        <div class="bg-indigo-600 p-6 text-white">
+            <h1 class="text-2xl font-bold flex items-center gap-2">
+                <i class="ph ph-table"></i>
+                Advanced Data Converter
+            </h1>
+            <p class="text-indigo-200 text-sm mt-1">Convert CSV and Excel (.xlsx, .xls) to JSON or Python Dictionaries.</p>
+        </div>
+
+        <div class="p-6 md:p-8 space-y-6">
             
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Input Section Layout -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 
-                <!-- File Upload Area -->
-                <div id="dropZone" class="drop-zone border-2 border-dashed border-slate-300 rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-slate-50 relative h-64">
-                    <input type="file" id="fileInput" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept=".csv, .xlsx, .xls" />
-                    <div class="bg-blue-100 p-3 rounded-full mb-3">
-                        <i class="ph ph-upload-simple text-2xl text-blue-600"></i>
+                <!-- File Upload Zone -->
+                <div class="space-y-2">
+                    <label class="block text-sm font-semibold text-slate-700">Upload File</label>
+                    <div id="dropZone" class="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center hover:bg-slate-50 transition-colors cursor-pointer group flex flex-col items-center justify-center h-48 relative">
+                        <i class="ph ph-upload-simple text-4xl text-slate-400 group-hover:text-indigo-500 mb-3 transition-colors"></i>
+                        <p class="text-sm text-slate-600">Drag & drop your file here, or click to browse</p>
+                        <p class="text-xs text-slate-400 mt-1">Supports .csv, .xlsx, .xls</p>
+                        <input type="file" id="fileInput" accept=".csv, .xlsx, .xls" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
                     </div>
-                    <p class="font-medium text-slate-700">Click or drag file to upload</p>
-                    <p class="text-sm text-slate-400 mt-1">Supports .csv, .xlsx, .xls</p>
-                    <div id="fileStatus" class="mt-4 text-sm font-medium text-blue-600 hidden flex items-center gap-1">
-                        <i class="ph ph-check-circle"></i> <span id="fileNameDisplay">File loaded</span>
-                    </div>
-                </div>
-
-                <!-- Text Area Area -->
-                <div class="flex flex-col h-64">
-                    <textarea id="csvInput" class="w-full h-full p-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm resize-none" placeholder="Or paste raw CSV data here...
-Example:
-id,name,role
-1,Alice,Engineer
-2,Bob,Designer"></textarea>
-                </div>
-            </div>
-        </div>
-
-        <!-- Field Selection Section -->
-        <div id="columnSelectionSection" class="hidden bg-white rounded-xl p-4 border border-slate-200 shadow-sm space-y-3">
-            <div class="flex items-center justify-between">
-                <h3 class="text-sm font-semibold text-slate-700 flex items-center gap-2">
-                    <i class="ph ph-list-checks text-blue-600"></i> Select Fields to Include
-                </h3>
-                <div class="flex gap-2 text-xs font-medium">
-                    <button onclick="setAllFields(true)" class="text-blue-600 hover:text-blue-800 hover:underline px-2 py-1 rounded transition-colors">Select All</button>
-                    <span class="text-slate-300 py-1">|</span>
-                    <button onclick="setAllFields(false)" class="text-slate-500 hover:text-slate-800 hover:underline px-2 py-1 rounded transition-colors">Deselect All</button>
-                </div>
-            </div>
-            <div id="fieldCheckboxes" class="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-1">
-                <!-- Checkboxes populated dynamically here -->
-            </div>
-        </div>
-
-        <!-- Controls Section -->
-        <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 flex flex-wrap items-center justify-between gap-4">
-            
-            <div class="flex items-center gap-3">
-                <label for="formatSelect" class="text-sm font-medium text-slate-700">Output Format:</label>
-                <div class="relative">
-                    <select id="formatSelect" class="appearance-none bg-white border border-slate-300 rounded-lg py-2 pl-4 pr-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm font-medium cursor-pointer shadow-sm">
-                        <option value="json">JSON Array</option>
-                        <option value="python">Python List of Dicts</option>
-                    </select>
-                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
-                        <i class="ph ph-caret-down"></i>
+                    <div id="fileNameDisplay" class="text-sm font-medium text-indigo-600 hidden flex items-center gap-1 mt-2">
+                        <i class="ph ph-file-text"></i> <span id="fileNameText"></span>
                     </div>
                 </div>
+
+                <!-- Text Area -->
+                <div class="space-y-2">
+                    <label class="block text-sm font-semibold text-slate-700 flex justify-between items-center">
+                        <span>Or Paste CSV/Data</span>
+                        <button onclick="clearInputs()" class="text-xs text-slate-400 hover:text-red-500 transition-colors">Clear</button>
+                    </label>
+                    <textarea id="csvInput" placeholder="Example:&#10;name,age,city&#10;Alice,25,London&#10;Bob,30,Paris" class="w-full h-48 p-4 border border-slate-300 rounded-xl font-mono text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none transition-all"></textarea>
+                </div>
             </div>
 
-            <div class="flex items-center gap-2 w-full sm:w-auto">
-                <button onclick="handleConvert()" class="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 shadow-sm">
-                    <i class="ph ph-arrows-left-right"></i> Convert
-                </button>
-                <button onclick="clearAll()" class="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Clear All">
-                    <i class="ph ph-trash text-lg"></i>
-                </button>
+            <!-- Column Inclusion/Exclusion Section -->
+            <div id="columnSelectionContainer" class="hidden bg-slate-50 border border-slate-200 rounded-xl p-5">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                        <i class="ph ph-check-square-offset text-lg"></i>
+                        Select Columns to Include
+                    </h3>
+                    <div class="space-x-2 text-xs">
+                        <button onclick="selectAllColumns(true)" class="text-indigo-600 hover:underline">Select All</button>
+                        <span class="text-slate-300">|</span>
+                        <button onclick="selectAllColumns(false)" class="text-indigo-600 hover:underline">Deselect All</button>
+                    </div>
+                </div>
+                <div id="checkboxesGrid" class="flex flex-wrap gap-3 max-h-40 overflow-y-auto p-2">
+                    <!-- Checkboxes injected here by JS -->
+                </div>
             </div>
-        </div>
 
-        <!-- Output Section -->
-        <div class="space-y-3">
-            <div class="flex items-center justify-between">
-                <h2 class="text-lg font-semibold flex items-center gap-2">
-                    <i class="ph ph-code"></i> Output
-                </h2>
+            <!-- Controls -->
+            <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <label for="formatSelect" class="text-sm font-medium text-slate-700">Format:</label>
+                    <div class="relative">
+                        <select id="formatSelect" class="appearance-none bg-white border border-slate-300 text-slate-700 py-2 pl-4 pr-10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm text-sm font-medium" onchange="convertData()">
+                            <option value="json">JSON</option>
+                            <option value="python">Python Dict/List</option>
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
+                            <i class="ph ph-caret-down"></i>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="flex gap-2">
-                    <button onclick="copyOutput()" class="text-sm bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 shadow-sm">
+                    <button onclick="copyOutput()" class="flex items-center gap-2 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 py-2 px-4 rounded-lg font-medium text-sm transition-colors shadow-sm">
                         <i class="ph ph-copy"></i> Copy
                     </button>
-                    <button onclick="downloadOutput()" class="text-sm bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 shadow-sm">
+                    <button onclick="downloadOutput()" class="flex items-center gap-2 bg-indigo-600 text-white hover:bg-indigo-700 py-2 px-4 rounded-lg font-medium text-sm transition-colors shadow-sm">
                         <i class="ph ph-download-simple"></i> Download
                     </button>
                 </div>
             </div>
-            
-            <div class="relative group">
-                <pre id="output" class="w-full h-80 bg-slate-900 text-slate-300 p-4 rounded-xl overflow-auto font-mono text-sm leading-relaxed border border-slate-800 shadow-inner">Output will appear here...</pre>
-                
-                <!-- Toast Notification Container -->
-                <div id="toast" class="absolute top-4 right-4 bg-slate-800 text-white px-4 py-2 rounded-lg text-sm shadow-lg transform transition-all duration-300 opacity-0 translate-y-2 pointer-events-none flex items-center gap-2">
-                    <i class="ph ph-check-circle text-green-400"></i>
-                    <span id="toastMsg">Action successful</span>
-                </div>
-            </div>
-        </div>
 
-    </div>
-</div>
-
-<script>
-    // State to hold data parsed from a file (to separate it from manual text input)
-    let parsedFileData = null; 
-    let allFields = [];
-    let selectedFields = new Set();
-
-    // DOM Elements
-    const dropZone = document.getElementById('dropZone');
-    const fileInput = document.getElementById('fileInput');
-    const fileStatus = document.getElementById('fileStatus');
-    const fileNameDisplay = document.getElementById('fileNameDisplay');
-    const csvInputArea = document.getElementById('csvInput');
-    const outputArea = document.getElementById('output');
-
-    // --- Drag and Drop Handlers ---
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, preventDefaults, false);
-    });
-
-    function preventDefaults(e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
-
-    ['dragenter', 'dragover'].forEach(eventName => {
-        dropZone.addEventListener(eventName, highlight, false);
-    });
-
-    ['dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, unhighlight, false);
-    });
-
-    function highlight(e) {
-        dropZone.classList.add('active');
-    }
-
-    function unhighlight(e) {
-        dropZone.classList.remove('active');
-    }
-
-    dropZone.addEventListener('drop', handleDrop, false);
-
-    function handleDrop(e) {
-        const dt = e.dataTransfer;
-        const files = dt.files;
-        if (files.length > 0) {
-            handleFiles(files[0]);
-        }
-    }
-
-    fileInput.addEventListener('change', function(e) {
-        if (this.files.length > 0) {
-            handleFiles(this.files[0]);
-        }
-    });
-
-    // --- File Processing (SheetJS) ---
-    function handleFiles(file) {
-        const reader = new FileReader();
-        const extension = file.name.split('.').pop().toLowerCase();
-
-        // Update UI
-        fileNameDisplay.textContent = file.name;
-        fileStatus.classList.remove('hidden');
-        csvInputArea.value = ''; // Clear manual input if file is uploaded
-        csvInputArea.placeholder = `Data loaded from ${file.name}.\n\nClick 'Convert' or paste new raw text here to override.`;
-        
-        reader.onload = function(e) {
-            try {
-                const data = e.target.result;
-                
-                if (extension === 'csv') {
-                    // For CSV, read as text
-                    parseRawCSV(data);
-                    extractHeaders();
-                    handleConvert();
-                } else if (extension === 'xlsx' || extension === 'xls') {
-                    // For Excel, read as ArrayBuffer and use SheetJS
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    // Get first sheet
-                    const firstSheetName = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[firstSheetName];
+            <!-- Output Section -->
+            <div class="relative rounded-xl overflow-hidden bg-[#1e1e1e] shadow-inner">
+                <div class="absolute top-0 w-full bg-[#2d2d2d] py-2 px-4 flex justify-between items-center border-b border-gray-700">
+                    <span class="text-xs text-gray-400 font-mono tracking-wider">OUTPUT</span>
                     
-                    // Convert sheet to JSON array
-                    // defval: "" ensures empty cells become empty strings instead of being skipped
-                    parsedFileData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
-                    showToast(`Loaded ${parsedFileData.length} rows from Excel`);
-                    extractHeaders();
-                    handleConvert(); // Auto-convert on load
-                } else {
-                    throw new Error("Unsupported file format");
-                }
-            } catch (err) {
-                showError("Error reading file: " + err.message);
-                parsedFileData = null;
-                fileStatus.classList.add('hidden');
-            }
-        };
+                    <!-- Custom Toast Notification inside Output -->
+                    <div id="toast" class="opacity-0 transition-opacity duration-300 bg-emerald-500 text-white text-xs px-3 py-1 rounded-full font-medium shadow flex items-center gap-1">
+                        <i class="ph ph-check-circle"></i> <span id="toastMsg">Copied!</span>
+                    </div>
+                </div>
+                <pre id="output" class="p-6 pt-12 text-sm text-[#d4d4d4] font-mono whitespace-pre-wrap word-wrap min-h-[250px] overflow-x-auto m-0"></pre>
+            </div>
 
-        if (extension === 'csv') {
-            reader.readAsText(file);
-        } else {
-            reader.readAsArrayBuffer(file);
-        }
-    }
+        </div>
+    </div>
 
-    // --- Manual CSV Parsing Logic (Fallback/Text Area) ---
-    function parseRawCSV(csvText) {
-        // Handle common CSV quoting and splitting (basic implementation)
-        // Note: For highly complex CSVs with nested quotes, a library like PapaParse is better,
-        // but this handles standard cases well.
-        const lines = csvText.trim().split(/\r?\n/);
+    <script>
+        // DOM Elements
+        const csvInputArea = document.getElementById("csvInput");
+        const formatSelect = document.getElementById("formatSelect");
+        const outputDisplay = document.getElementById("output");
+        const dropZone = document.getElementById("dropZone");
+        const fileInput = document.getElementById("fileInput");
+        const fileNameDisplay = document.getElementById("fileNameDisplay");
+        const fileNameText = document.getElementById("fileNameText");
         
-        if (lines.length < 1 || !lines[0]) {
-            parsedFileData = [];
-            return [];
-        }
+        // Column Selection Elements
+        const columnSelectionContainer = document.getElementById("columnSelectionContainer");
+        const checkboxesGrid = document.getElementById("checkboxesGrid");
 
-        // Simple split by comma for headers
-        const headers = lines[0].split(",").map(h => h.trim());
-        const result = [];
+        // Global State
+        let parsedFileData = []; 
+        let currentHeaders = [];
 
-        for (let i = 1; i < lines.length; i++) {
-            if(!lines[i].trim()) continue; // Skip empty lines
+        // --- Robust CSV Parsing Logic ---
+        
+        // Character-by-character parser to handle escaped quotes and commas inside strings
+        function splitCSVLine(text) {
+            let result = [];
+            let current = '';
+            let inQuotes = false;
             
-            // Simple split for values
-            const values = lines[i].split(",").map(v => v.trim());
-            const obj = {};
-
-            headers.forEach((header, index) => {
-                // Try to infer numbers
-                let val = values[index] || "";
-                if (!isNaN(val) && val !== "") {
-                   // Optional: Convert to number if it's purely numeric
-                   // val = Number(val); 
+            for (let i = 0; i < text.length; i++) {
+                let char = text[i];
+                
+                // Handle escaped double quotes ("") inside quotes
+                if (char === '"' && text[i+1] === '"' && inQuotes) {
+                    current += '"';
+                    i++; // skip the next quote
+                } 
+                // Toggle quote state
+                else if (char === '"') {
+                    inQuotes = !inQuotes;
+                } 
+                // Split by comma if we are not inside quotes
+                else if (char === ',' && !inQuotes) {
+                    result.push(current);
+                    current = '';
+                } 
+                // Append standard character
+                else {
+                    current += char;
                 }
-                obj[header] = val;
-            });
-            result.push(obj);
+            }
+            result.push(current); // push the last value
+            
+            // Trim whitespace from resulting strings
+            return result.map(s => s.trim());
         }
 
-        parsedFileData = result;
-        return result;
-    }
+        // Parse multiline raw CSV text into array of objects
+        function parseRawCSV(csvText) {
+            const lines = csvText.trim().split(/\r?\n/);
+            
+            if (lines.length < 1 || !lines[0]) {
+                parsedFileData = [];
+                return [];
+            }
 
-    // --- Formatting Logic ---
-    function pythonRepr(obj, indent = 4) {
-        // Convert JS object to a string that looks like a Python list of dicts
-        const jsonStr = JSON.stringify(obj, null, indent);
-        return jsonStr
-            .replace(/: true/g, ": True")
-            .replace(/: false/g, ": False")
-            .replace(/: null/g, ": None")
-            // Optional: convert double quotes to single quotes for Python feel, 
-            // but double quotes are valid Python too. We'll stick to standard JSON-like structure
-            // for safety with complex strings containing single quotes.
-            ;
-    }
+            // Extract headers and strip surrounding quotes safely
+            const headers = splitCSVLine(lines[0]);
+            const result = [];
 
-    // --- Main Conversion Action ---
-    function handleConvert() {
-        const manualText = csvInputArea.value.trim();
-        const format = document.getElementById("formatSelect").value;
-        let dataToConvert = [];
+            for (let i = 1; i < lines.length; i++) {
+                if(!lines[i].trim()) continue; // Skip empty lines
+                
+                const values = splitCSVLine(lines[i]);
+                const obj = {};
 
-        try {
-            // Determine source of data: Manual text overrides file input
+                headers.forEach((header, index) => {
+                    let val = values[index] || "";
+                    obj[header] = val;
+                });
+                result.push(obj);
+            }
+
+            parsedFileData = result;
+            return result;
+        }
+
+        // --- STREAMING_CHUNK:Implementing header extraction and checkbox generation... ---
+        function extractHeaders() {
+            const manualText = csvInputArea.value.trim();
+            let newHeaders = [];
+            
             if (manualText) {
-                dataToConvert = parseRawCSV(manualText);
-                // Clear file status if user started typing
-                if(parsedFileData && manualText !== "") {
-                    fileStatus.classList.add('hidden');
-                    fileInput.value = ''; // Reset file input
+                const firstLine = manualText.split(/\r?\n/)[0];
+                if (firstLine) {
+                    newHeaders = splitCSVLine(firstLine).filter(h => h);
                 }
-            } else if (parsedFileData) {
-                dataToConvert = parsedFileData;
-            } else {
-                outputArea.textContent = "Please upload a file or paste data to convert.";
+            } else if (parsedFileData && parsedFileData.length > 0) {
+                newHeaders = Object.keys(parsedFileData[0]);
+            }
+
+            // Only update checkboxes if the headers have changed
+            if (JSON.stringify(newHeaders) !== JSON.stringify(currentHeaders)) {
+                currentHeaders = newHeaders;
+                renderCheckboxes();
+            }
+        }
+
+        function renderCheckboxes() {
+            checkboxesGrid.innerHTML = '';
+            
+            if (currentHeaders.length === 0) {
+                columnSelectionContainer.classList.add('hidden');
                 return;
             }
 
-            if(dataToConvert.length === 0) {
-                 outputArea.textContent = "No valid data found to convert.";
-                 return;
-            }
+            columnSelectionContainer.classList.remove('hidden');
 
-            // Filter Data based on selected fields
-            const filteredData = dataToConvert.map(row => {
-                const newRow = {};
-                allFields.forEach(field => {
-                    if (selectedFields.has(field) && row[field] !== undefined) {
-                        newRow[field] = row[field];
+            currentHeaders.forEach(header => {
+                const id = 'chk_' + header.replace(/\W/g, '_');
+                const label = document.createElement('label');
+                label.className = 'flex items-center gap-2 bg-white border border-slate-200 px-3 py-1.5 rounded-md cursor-pointer hover:bg-slate-50 transition-colors shadow-sm';
+                
+                label.innerHTML = `
+                    <input type="checkbox" checked value="${header}" class="header-checkbox w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500" onchange="convertData()">
+                    <span class="text-sm font-medium text-slate-700 truncate max-w-[150px]" title="${header}">${header}</span>
+                `;
+                checkboxesGrid.appendChild(label);
+            });
+        }
+
+        function selectAllColumns(select) {
+            const checkboxes = document.querySelectorAll('.header-checkbox');
+            checkboxes.forEach(cb => cb.checked = select);
+            convertData();
+        }
+
+        // --- STREAMING_CHUNK:Handling drag and drop and file processing (SheetJS)... ---
+        function handleFiles(file) {
+            if (!file) return;
+
+            fileNameText.textContent = file.name;
+            fileNameDisplay.classList.remove('hidden');
+            csvInputArea.value = ''; // Clear text area to prioritize file
+
+            const extension = file.name.split('.').pop().toLowerCase();
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                try {
+                    if (extension === 'csv') {
+                        // Parse raw CSV
+                        parseRawCSV(e.target.result);
+                    } else if (extension === 'xlsx' || extension === 'xls') {
+                        // Parse Excel using SheetJS
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, {type: 'array'});
+                        const firstSheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[firstSheetName];
+                        
+                        // Convert sheet directly to JSON array of objects
+                        parsedFileData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+                    } else {
+                        throw new Error("Unsupported file type.");
                     }
-                });
-                return newRow;
-            });
+                    
+                    showToast("File loaded successfully!");
+                    extractHeaders();
+                    convertData();
 
-            // Output Formatting
-            if (format === "json") {
-                outputArea.textContent = JSON.stringify(filteredData, null, 4);
-            } else if (format === "python") {
-                outputArea.textContent = pythonRepr(filteredData);
-            }
-            
-            outputArea.classList.remove('text-red-400');
-            outputArea.classList.add('text-slate-300');
-
-        } catch (error) {
-            showError("Conversion Error: " + error.message);
-        }
-    }
-
-    // --- Utilities ---
-    function clearAll() {
-        csvInputArea.value = '';
-        csvInputArea.placeholder = "Or paste raw CSV data here...\nExample:\nid,name,role\n1,Alice,Engineer\n2,Bob,Designer";
-        outputArea.textContent = "Output will appear here...";
-        fileInput.value = '';
-        parsedFileData = null;
-        allFields = [];
-        selectedFields.clear();
-        renderFieldSelector();
-        fileStatus.classList.add('hidden');
-        outputArea.classList.remove('text-red-400');
-        outputArea.classList.add('text-slate-300');
-    }
-
-    function showError(msg) {
-        outputArea.textContent = msg;
-        outputArea.classList.remove('text-slate-300');
-        outputArea.classList.add('text-red-400');
-    }
-
-    function showToast(message) {
-        const toast = document.getElementById('toast');
-        const toastMsg = document.getElementById('toastMsg');
-        toastMsg.textContent = message;
-        
-        toast.classList.remove('opacity-0', 'translate-y-2', 'pointer-events-none');
-        
-        setTimeout(() => {
-            toast.classList.add('opacity-0', 'translate-y-2', 'pointer-events-none');
-        }, 2500);
-    }
-
-    function copyOutput() {
-        const content = outputArea.textContent;
-        if (!content || content === "Output will appear here..." || content.startsWith("Error")) return;
-
-        // Use custom logic as requested
-        const textArea = document.createElement("textarea");
-        textArea.value = content;
-        document.body.appendChild(textArea);
-        textArea.select();
-        try {
-            document.execCommand('copy');
-            showToast("Copied to clipboard!");
-        } catch (err) {
-            console.error('Failed to copy', err);
-            alert("Failed to copy. Your browser might not support this feature.");
-        }
-        document.body.removeChild(textArea);
-    }
-
-    function downloadOutput() {
-        const content = outputArea.textContent;
-        if (!content || content === "Output will appear here..." || content.startsWith("Error")) {
-             alert("Nothing to download");
-             return;
-        }
-
-        const format = document.getElementById("formatSelect").value;
-        const blob = new Blob([content], { type: "text/plain" });
-        const a = document.createElement("a");
-        
-        a.href = URL.createObjectURL(blob);
-        a.download = format === "json" ? "data_export.json" : "data_export.py";
-        
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(a.href);
-        
-        showToast("Download started");
-    }
-
-    function extractHeaders() {
-        const manualText = csvInputArea.value.trim();
-        let newHeaders = [];
-        
-        if (manualText) {
-            const firstLine = manualText.split(/\r?\n/)[0];
-            if (firstLine) {
-                // Better CSV split handling for headers
-                newHeaders = firstLine.split(",").map(h => h.trim()).filter(h => h);
-            }
-        } else if (parsedFileData && parsedFileData.length > 0) {
-            newHeaders = Object.keys(parsedFileData[0]);
-        }
-
-        // Only re-render if the headers have changed to preserve user selection
-        if (JSON.stringify(newHeaders) !== JSON.stringify(allFields)) {
-            allFields = newHeaders;
-            selectedFields = new Set(allFields); // Check all by default
-            renderFieldSelector();
-        }
-    }
-
-    function renderFieldSelector() {
-        const section = document.getElementById('columnSelectionSection');
-        const container = document.getElementById('fieldCheckboxes');
-        
-        if (allFields.length === 0) {
-            section.classList.add('hidden');
-            return;
-        }
-        
-        section.classList.remove('hidden');
-        container.innerHTML = '';
-        
-        allFields.forEach(field => {
-            const isChecked = selectedFields.has(field) ? 'checked' : '';
-            const label = document.createElement('label');
-            label.className = `flex items-center gap-2 text-sm bg-white border ${isChecked ? 'border-blue-400 bg-blue-50' : 'border-slate-200'} px-3 py-2 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors shadow-sm select-none`;
-            
-            label.innerHTML = `
-                <input type="checkbox" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" value="${field}" ${isChecked}>
-                <span class="font-medium ${isChecked ? 'text-blue-800' : 'text-slate-600'}">${field}</span>
-            `;
-            
-            const checkbox = label.querySelector('input');
-            checkbox.addEventListener('change', (e) => {
-                if (e.target.checked) {
-                    selectedFields.add(field);
-                    label.classList.replace('border-slate-200', 'border-blue-400');
-                    label.classList.add('bg-blue-50');
-                    label.querySelector('span').classList.replace('text-slate-600', 'text-blue-800');
-                } else {
-                    selectedFields.delete(field);
-                    label.classList.replace('border-blue-400', 'border-slate-200');
-                    label.classList.remove('bg-blue-50');
-                    label.querySelector('span').classList.replace('text-blue-800', 'text-slate-600');
+                } catch (err) {
+                    outputDisplay.textContent = "Error processing file: " + err.message;
                 }
-                handleConvert();
-            });
-            
-            container.appendChild(label);
-        });
-    }
+            };
 
-    function setAllFields(state) {
-        if (state) {
-            allFields.forEach(f => selectedFields.add(f));
-        } else {
-            selectedFields.clear();
+            if (extension === 'csv') {
+                reader.readAsText(file);
+            } else {
+                reader.readAsArrayBuffer(file);
+            }
         }
-        renderFieldSelector();
-        handleConvert();
-    }
 
-    // Initialize text area listener with debounce for real-time header extraction
-    let debounceTimeout = null;
-    csvInputArea.addEventListener('input', () => {
-        if(parsedFileData && csvInputArea.value.trim().length > 0) {
-            fileStatus.classList.add('hidden');
-            parsedFileData = null; // Prioritize manual input
+        // Drag and Drop Listeners
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('border-indigo-500', 'bg-indigo-50');
+            dropZone.classList.remove('border-slate-300');
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-indigo-500', 'bg-indigo-50');
+            dropZone.classList.add('border-slate-300');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-indigo-500', 'bg-indigo-50');
+            dropZone.classList.add('border-slate-300');
+            
+            if (e.dataTransfer.files.length > 0) {
+                fileInput.files = e.dataTransfer.files;
+                handleFiles(e.dataTransfer.files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFiles(e.target.files[0]);
+            }
+        });
+
+        // Text Area Listeners (for auto-extracting headers and auto-converting)
+        csvInputArea.addEventListener('input', () => {
+            if(csvInputArea.value.trim() !== "") {
+                // If user types, clear file data so text takes precedence
+                parsedFileData = [];
+                fileNameDisplay.classList.add('hidden');
+                fileInput.value = "";
+            }
+            extractHeaders();
+            convertData();
+        });
+
+
+        // --- STREAMING_CHUNK:Data formatting, output generation, and utilities... ---
+        function pythonRepr(obj, indent = 4) {
+            return JSON.stringify(obj, null, indent)
+                .replace(/true/g, "True")
+                .replace(/false/g, "False")
+                .replace(/null/g, "None")
+                .replace(/"/g, "'"); // Convert double quotes to single for python dictionaries
+        }
+
+        function getSelectedHeaders() {
+            const checkboxes = document.querySelectorAll('.header-checkbox');
+            const selected = [];
+            checkboxes.forEach(cb => {
+                if (cb.checked) selected.push(cb.value);
+            });
+            return selected;
+        }
+
+        function convertData() {
+            const format = formatSelect.value;
+            let finalData = [];
+
+            try {
+                // Determine data source
+                if (csvInputArea.value.trim() !== "") {
+                    // Re-parse raw text if it exists
+                    parseRawCSV(csvInputArea.value);
+                }
+                
+                // Apply Field Filtering
+                const selectedHeaders = getSelectedHeaders();
+                
+                if (parsedFileData.length > 0 && selectedHeaders.length > 0) {
+                    finalData = parsedFileData.map(row => {
+                        let filteredRow = {};
+                        selectedHeaders.forEach(header => {
+                            // Ensure key exists, fallback to empty string
+                            filteredRow[header] = row[header] !== undefined ? row[header] : "";
+                        });
+                        return filteredRow;
+                    });
+                } else if (parsedFileData.length > 0 && selectedHeaders.length === 0) {
+                     // Empty result if everything is deselected
+                    finalData = [];
+                }
+
+                // Format Output
+                if (finalData.length === 0 && currentHeaders.length === 0) {
+                    outputDisplay.textContent = "";
+                    return;
+                }
+
+                if (format === "json") {
+                    outputDisplay.textContent = JSON.stringify(finalData, null, 4);
+                } else {
+                    outputDisplay.textContent = pythonRepr(finalData);
+                }
+            } catch (error) {
+                outputDisplay.textContent = "Error parsing data: " + error.message;
+            }
+        }
+
+        function clearInputs() {
+            csvInputArea.value = '';
+            fileInput.value = '';
+            parsedFileData = [];
+            currentHeaders = [];
+            fileNameDisplay.classList.add('hidden');
+            columnSelectionContainer.classList.add('hidden');
+            outputDisplay.textContent = '';
+            extractHeaders();
+        }
+
+        // Utility: Custom Toast Notification
+        function showToast(message) {
+            const toast = document.getElementById("toast");
+            const toastMsg = document.getElementById("toastMsg");
+            toastMsg.textContent = message;
+            toast.classList.remove("opacity-0");
+            setTimeout(() => {
+                toast.classList.add("opacity-0");
+            }, 2000);
+        }
+
+        // Utility: Copy to Clipboard fallback loop
+        function copyOutput() {
+            const outputText = outputDisplay.textContent;
+            if (!outputText) return;
+
+            // Use legacy execCommand for iFrame compatibility
+            const textArea = document.createElement("textarea");
+            textArea.value = outputText;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showToast("Copied to clipboard!");
+            } catch (err) {
+                alert("Failed to copy. Please select and copy manually.");
+            }
+            document.body.removeChild(textArea);
+        }
+
+        function downloadOutput() {
+            const outputText = outputDisplay.textContent;
+            if (!outputText) return;
+            
+            const format = formatSelect.value;
+            const blob = new Blob([outputText], { type: "text/plain" });
+            const a = document.createElement("a");
+            
+            a.href = URL.createObjectURL(blob);
+            a.download = format === "json" ? "output.json" : "output.py";
+            a.click();
+            URL.revokeObjectURL(a.href);
         }
         
-        clearTimeout(debounceTimeout);
-        debounceTimeout = setTimeout(() => {
-            extractHeaders();
-            handleConvert();
-        }, 400);
-    });
-
-</script>
-
+        // Initial setup run
+        extractHeaders();
+    </script>
 </body>
 </html>
